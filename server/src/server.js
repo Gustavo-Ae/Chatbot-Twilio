@@ -3,6 +3,8 @@ require("dotenv").config();
 const bodyParser = require("body-parser");
 const twilio = require("twilio");
 var express = require("express");
+const { criarMensagemResultado } = require("./utils/criarMensagemResultado");
+const { finalizarJogo } = require("./utils/finalizarJogo");
 var app = express();
 
 app.use(express.json());
@@ -26,37 +28,20 @@ app.post("/messageWhatsapp", (req, res) => {
 
     const opcoes = ["pedra", "papel", "tesoura"];
 
-    const perde = {
+    const opcoesQuandoPerde = {
       pedra: "papel",
       papel: "tesoura",
       tesoura: "pedra",
     };
 
+    let respostaBot;
+
     switch (mensagemCliente) {
       case "r":
-        twiml.message(`Resultado: 
-        💻Computador: ${pontuacaoComputador}
-        🧑Você: ${pontuacaoCliente}`);
+        respostaBot = criarMensagemResultado(twiml, pontuacaoComputador, pontuacaoCliente);
         break;
       case "f":
-        if (pontuacaoCliente > pontuacaoComputador) {
-          twiml.message("Você ganhou, parabéns 👏👏👏👏");
-          twiml.message(`Resultado: 
-          💻Computador: ${pontuacaoComputador}
-          🧑Você: ${pontuacaoCliente}`);
-        } else if (pontuacaoComputador > pontuacaoCliente) {
-          twiml
-            .message("Ganhei! Ganhei!!!")
-            .media(
-              "https://img.freepik.com/vetores-premium/robo-fofo-personagem-de-desenho-animado_138676-2915.jpg"
-            );
-          twiml.message(`Resultado: 
-          💻Computador: ${pontuacaoComputador}
-          🧑Você: ${pontuacaoCliente}`);
-        } else {
-          twiml.message("Deu Empate, vamos jogar novamente ?");
-        }
-
+        respostaBot = finalizarJogo(twiml, pontuacaoComputador, pontuacaoCliente);
         pontuacaoCliente = 0;
         pontuacaoComputador = 0;
         break;
@@ -64,16 +49,16 @@ app.post("/messageWhatsapp", (req, res) => {
       case "pedra":
       case "papel":
       case "tesoura":
-        const computador = opcoes[Math.floor(Math.random() * opcoes.length)];
+        const escolhaComputador = opcoes[Math.floor(Math.random() * opcoes.length)];
 
-        if (computador === mensagemCliente) {
+        if (escolhaComputador === mensagemCliente) {
           twiml.message(`Ops, deu empate!`);
-        } else if (perde[computador] === mensagemCliente) {
-          twiml.message(`Eu escolhi *${computador}*`);
+        } else if (opcoesQuandoPerde[escolhaComputador] === mensagemCliente) {
+          twiml.message(`Eu escolhi *${escolhaComputador}*`);
           twiml.message(`Você ganhou, parabéns 👏👏`);
           pontuacaoCliente++;
         } else {
-          twiml.message(`Eu escolhi *${computador}*`);
+          twiml.message(`Eu escolhi *${escolhaComputador}*`);
           twiml
             .message("Ganhei! Ganhei!!!")
             .media(
@@ -91,12 +76,14 @@ app.post("/messageWhatsapp", (req, res) => {
         📝Mostrar o resultado - ( *r* )`);
         break;
     }
+    if(respostaBot == null){
+      respostaBot = twiml.toString();
+    }
 
-    const respostaBot = twiml.toString();
-
-    return res.status(200).send(respostaBot);
+    res.status(200).send(respostaBot);
   } catch (error) {
     console.log("Erro na rota /messageWhatszap :", error);
+    res.status(400).send("Erro no bot que envia mensagem: ",error)
   }
 });
 
